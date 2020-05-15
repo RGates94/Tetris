@@ -62,6 +62,12 @@ impl Piece {
             Self::I => &FILLED[24..28],
         }
     }
+    fn height(&self, _rotation: u8) -> usize {
+        match self {
+            Self::I => 1,
+            _ => 2,
+        }
+    }
 }
 
 #[derive(Default, Debug)]
@@ -82,9 +88,12 @@ impl Board {
         let mut target_row = 0;
         for (index, row) in self.board.iter().enumerate().rev() {
             if row[column as usize].filled {
-                if index < 19 {
+                if index < 20 - piece.height(0) {
                     target_row = index + 1;
                     break;
+                } else {
+                    *self = Board::default();
+                    return;
                 }
             }
         }

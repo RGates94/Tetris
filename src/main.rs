@@ -1,12 +1,12 @@
-use ggez::{Context, ContextBuilder, GameResult};
 use ggez::event::{self, EventHandler};
 use ggez::graphics;
-use ggez::graphics::{Rect, window};
+use ggez::graphics::{window, Rect};
+use ggez::{Context, ContextBuilder, GameResult};
 use num_derive::FromPrimitive;
-use std::time::{Instant, Duration};
+use num_traits::cast::FromPrimitive;
 use rand::prelude::ThreadRng;
 use rand::Rng;
-use num_traits::cast::FromPrimitive;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, FromPrimitive, Clone, Copy)]
 enum Piece {
@@ -86,10 +86,16 @@ impl Board {
             return;
         }
         let mut target_row = 0;
-        for (index, row) in self.board.iter().enumerate().rev() {
-            if row[column as usize].filled {
-                if index < 20 - piece.height(0) {
-                    target_row = index + 1;
+        for row in (0..19).rev() {
+            if {
+                let mut collides = false;
+                for (x, y) in piece.filled() {
+                    collides |= self.board[row + *x as usize][(column + *y) as usize].filled
+                }
+                collides
+            } {
+                if row < 20 - piece.height(0) {
+                    target_row = row + 1;
                     break;
                 } else {
                     *self = Board::default();
@@ -113,7 +119,7 @@ struct Tetris {
 
 impl EventHandler for Tetris {
     fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
-        let piece = Piece::from_isize(self.rng.gen_range::<isize,_ ,_>(0,7)).unwrap();
+        let piece = Piece::from_isize(self.rng.gen_range::<isize, _, _>(0, 7)).unwrap();
         if let Some(time) = &mut self.next_tick {
             while Instant::now() > *time {
                 self.board.hard_drop(piece, 6, 2);
@@ -126,7 +132,7 @@ impl EventHandler for Tetris {
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx, graphics::BLACK);
 
-        let (width, height): (f64,f64) = window(&ctx).get_inner_size().unwrap().into();
+        let (width, height): (f64, f64) = window(&ctx).get_inner_size().unwrap().into();
 
         for (ypos, row) in self.board.board.iter().enumerate() {
             for (xpos, cell) in row.iter().enumerate() {
@@ -134,7 +140,12 @@ impl EventHandler for Tetris {
                     let rectangle = graphics::Mesh::new_rectangle(
                         ctx,
                         graphics::DrawMode::fill(),
-                        Rect::new(width as f32 / 2.0 - 80.0 + 16.0 * xpos as f32,height as f32 - 16.0 * (ypos + 1) as f32,14.0,14.0),
+                        Rect::new(
+                            width as f32 / 2.0 - 80.0 + 16.0 * xpos as f32,
+                            height as f32 - 16.0 * (ypos + 1) as f32,
+                            14.0,
+                            14.0,
+                        ),
                         [0.25, 0.75, 0.75, 1.0].into(),
                     )?;
                     graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 },))?;
@@ -147,10 +158,7 @@ impl EventHandler for Tetris {
 }
 
 fn main() {
-    let (mut ctx, mut event_loop) =
-        ContextBuilder::new("Tetris", "ix")
-            .build()
-            .unwrap();
+    let (mut ctx, mut event_loop) = ContextBuilder::new("Tetris", "ix").build().unwrap();
     let mut test = Tetris::default();
     let rng = rand::thread_rng();
 
@@ -166,6 +174,6 @@ fn main() {
     // Run!
     match event::run(&mut ctx, &mut event_loop, &mut test) {
         Ok(_) => println!("Exited cleanly."),
-        Err(e) => println!("Error occured: {}", e)
+        Err(e) => println!("Error occured: {}", e),
     }
 }

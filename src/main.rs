@@ -1,3 +1,8 @@
+use ggez::{Context, ContextBuilder, GameResult};
+use ggez::event::{self, EventHandler};
+use ggez::graphics;
+use ggez::graphics::{Rect, window};
+
 #[derive(Debug)]
 enum Piece {
     O,
@@ -89,11 +94,51 @@ struct Tetris {
     board: Board,
 }
 
+impl EventHandler for Tetris {
+    fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
+        Ok(())
+    }
+
+    fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
+        graphics::clear(ctx, graphics::BLACK);
+
+        let (width, height): (f64,f64) = window(&ctx).get_inner_size().unwrap().into();
+
+        for (ypos, row) in self.board.board.iter().enumerate() {
+            for (xpos, cell) in row.iter().enumerate() {
+                if cell.filled {
+                    let rectangle = graphics::Mesh::new_rectangle(
+                        ctx,
+                        graphics::DrawMode::fill(),
+                        Rect::new(16.0 * xpos as f32,height as f32 - 16.0 * (ypos + 1) as f32,14.0,14.0),
+                        [0.25, 0.75, 0.75, 1.0].into(),
+                    )?;
+                    graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 },))?;
+                }
+            }
+        }
+
+        graphics::present(ctx)
+    }
+}
+
 fn main() {
+    let (mut ctx, mut event_loop) =
+        ContextBuilder::new("Tetris", "ix")
+            .build()
+            .unwrap();
     let mut test = Tetris::default();
+
+
     println!("{:?}", test);
     test.board.hard_drop(Piece::O, 3, 3);
     println!("{:?}", test);
     test.board.hard_drop(Piece::T, 4, 2);
     println!("{:?}", test);
+
+    // Run!
+    match event::run(&mut ctx, &mut event_loop, &mut test) {
+        Ok(_) => println!("Exited cleanly."),
+        Err(e) => println!("Error occured: {}", e)
+    }
 }

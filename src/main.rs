@@ -2,8 +2,13 @@ use ggez::{Context, ContextBuilder, GameResult};
 use ggez::event::{self, EventHandler};
 use ggez::graphics;
 use ggez::graphics::{Rect, window};
+use num_derive::FromPrimitive;
+use std::time::{Instant, Duration};
+use rand::prelude::ThreadRng;
+use rand::Rng;
+use num_traits::cast::FromPrimitive;
 
-#[derive(Debug)]
+#[derive(Debug, FromPrimitive, Clone, Copy)]
 enum Piece {
     O,
     T,
@@ -70,7 +75,7 @@ struct Board {
 }
 
 impl Board {
-    fn hard_drop(&mut self, piece: Piece, column: u8, rotation: u8) {
+    fn hard_drop(&mut self, piece: Piece, column: u8, _rotation: u8) {
         if column >= 10 {
             return;
         }
@@ -91,11 +96,21 @@ impl Board {
 
 #[derive(Default, Debug)]
 struct Tetris {
+    next_tick: Option<Instant>,
+    tick_speed: Duration,
     board: Board,
+    rng: ThreadRng,
 }
 
 impl EventHandler for Tetris {
     fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
+        let piece = Piece::from_isize(self.rng.gen_range::<isize,_ ,_>(0,7)).unwrap();
+        if let Some(time) = &mut self.next_tick {
+            while Instant::now() > *time {
+                self.board.hard_drop(piece, 6, 2);
+                *time += self.tick_speed;
+            }
+        }
         Ok(())
     }
 
@@ -110,7 +125,7 @@ impl EventHandler for Tetris {
                     let rectangle = graphics::Mesh::new_rectangle(
                         ctx,
                         graphics::DrawMode::fill(),
-                        Rect::new(16.0 * xpos as f32,height as f32 - 16.0 * (ypos + 1) as f32,14.0,14.0),
+                        Rect::new(width as f32 / 2.0 - 80.0 + 16.0 * xpos as f32,height as f32 - 16.0 * (ypos + 1) as f32,14.0,14.0),
                         [0.25, 0.75, 0.75, 1.0].into(),
                     )?;
                     graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 },))?;
@@ -128,13 +143,16 @@ fn main() {
             .build()
             .unwrap();
     let mut test = Tetris::default();
-
+    let rng = rand::thread_rng();
 
     println!("{:?}", test);
     test.board.hard_drop(Piece::O, 3, 3);
     println!("{:?}", test);
     test.board.hard_drop(Piece::T, 4, 2);
     println!("{:?}", test);
+    test.rng = rng;
+    test.tick_speed = Duration::from_millis(500);
+    test.next_tick = Some(Instant::now() + Duration::from_millis(2000));
 
     // Run!
     match event::run(&mut ctx, &mut event_loop, &mut test) {

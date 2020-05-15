@@ -1222,6 +1222,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-derive"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c8b15b261814f992e33760b1fca9fe8b693d8a65299f20c9901688636cfb746"
+dependencies = [
+ "proc-macro2 1.0.12",
+ "quote 1.0.5",
+ "syn 1.0.21",
+]
+
+[[package]]
 name = "num-integer"
 version = "0.1.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2009,6 +2020,9 @@ name = "tetris"
 version = "0.1.0"
 dependencies = [
  "ggez",
+ "num-derive 0.3.0",
+ "num-traits 0.2.11",
+ "rand 0.7.3",
 ]
 
 [[package]]
@@ -2019,7 +2033,7 @@ checksum = "d7b7c2cfc4742bd8a32f2e614339dd8ce30dbcf676bb262bd63a2327bc5df57d"
 dependencies = [
  "byteorder",
  "lzw",
- "num-derive",
+ "num-derive 0.2.5",
  "num-traits 0.2.11",
 ]
 

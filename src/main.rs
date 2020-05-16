@@ -138,15 +138,15 @@ struct Tetris {
 
 impl EventHandler for Tetris {
     fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
-        if self.current_batch.is_empty() {
-            swap(&mut self.current_batch, &mut self.next_batch);
-            generate_batch(&mut self.rng, &mut self.next_batch);
-            if self.current_batch.is_empty() {
-                generate_batch(&mut self.rng, &mut self.current_batch)
-            }
-        }
         if let Some(time) = &mut self.next_tick {
             while Instant::now() > *time {
+                if self.current_batch.is_empty() {
+                    swap(&mut self.current_batch, &mut self.next_batch);
+                    generate_batch(&mut self.rng, &mut self.next_batch);
+                    if self.current_batch.is_empty() {
+                        generate_batch(&mut self.rng, &mut self.current_batch)
+                    }
+                }
                 let piece = self.current_batch.pop().unwrap();
                 let rotation = self.rng.gen_range(0, 4);
                 let column = self.rng.gen_range(0, 11 - piece.width(rotation) as u8);

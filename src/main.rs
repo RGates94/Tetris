@@ -8,6 +8,9 @@ use rand::prelude::{SliceRandom, ThreadRng};
 use rand::Rng;
 use std::mem::swap;
 use std::time::{Duration, Instant};
+use filled::FILLED;
+
+mod filled;
 
 #[derive(Debug, FromPrimitive, Clone, Copy)]
 enum Piece {
@@ -20,60 +23,44 @@ enum Piece {
     I,
 }
 
-static FILLED: [(u8, u8); 28] = [
-    (0, 0), //O1
-    (0, 1),
-    (1, 0),
-    (1, 1),
-    (0, 0), //T1
-    (0, 1),
-    (0, 2),
-    (1, 1),
-    (0, 0), //L1
-    (0, 1),
-    (0, 2),
-    (1, 2),
-    (0, 0), //J1
-    (0, 1),
-    (0, 2),
-    (1, 0),
-    (0, 0), //S1
-    (0, 1),
-    (1, 1),
-    (1, 2),
-    (0, 1), //Z1
-    (0, 2),
-    (1, 0),
-    (1, 1),
-    (0, 0), //I1
-    (0, 1),
-    (0, 2),
-    (0, 3),
-];
-
 impl Piece {
-    fn filled(&self) -> &[(u8, u8)] {
+    fn filled(&self, rotation: u8) -> &[(u8, u8)] {
         match self {
-            Self::O => &FILLED[0..4],
-            Self::T => &FILLED[4..8],
-            Self::L => &FILLED[8..12],
-            Self::J => &FILLED[12..16],
-            Self::S => &FILLED[16..20],
-            Self::Z => &FILLED[20..24],
-            Self::I => &FILLED[24..28],
+            Self::O => &FILLED[rotation as usize][0..4],
+            Self::T => &FILLED[rotation as usize][4..8],
+            Self::L => &FILLED[rotation as usize][8..12],
+            Self::J => &FILLED[rotation as usize][12..16],
+            Self::S => &FILLED[rotation as usize][16..20],
+            Self::Z => &FILLED[rotation as usize][20..24],
+            Self::I => &FILLED[rotation as usize][24..28],
         }
     }
-    fn height(&self, _rotation: u8) -> usize {
-        match self {
-            Self::I => 1,
-            _ => 2,
+    fn height(&self, rotation: u8) -> usize {
+        match rotation {
+            0 => match self {
+                    Self::I => 1,
+                    _ => 2,
+                },
+            1 => match self {
+                Self::O => 2,
+                Self::I => 4,
+                _ => 3,
+            },
+            _ => unimplemented!(),
         }
     }
-    fn width(&self, _rotation: u8) -> usize {
-        match self {
-            Self::O => 2,
-            Self::I => 4,
-            _ => 3,
+    fn width(&self, rotation: u8) -> usize {
+        match rotation {
+            0 => match self {
+                    Self::O => 2,
+                    Self::I => 4,
+                    _ => 3,
+                },
+            1 => match self {
+                Self::I => 1,
+                _ => 2,
+            }
+            _ => unimplemented!(),
         }
     }
     fn color(&self) -> Color {
@@ -101,22 +88,25 @@ struct Board {
 }
 
 impl Board {
-    fn hard_drop(&mut self, piece: Piece, column: u8, _rotation: u8) {
+    fn hard_drop(&mut self, piece: Piece, column: u8, rotation: u8) {
         if column >= 10 {
             return;
         }
         let mut target_row = 0;
-        for row in (0..19).rev() {
+        for row in (0..20).rev() {
             if {
                 let mut collides = false;
-                for (x, y) in piece.filled() {
-                    collides |= self.board[row + *x as usize][(column + *y) as usize]
+                for (x, y) in piece.filled(rotation) {
+                    collides |= match self.board.get(row + *x as usize).map(|x|x[(column + *y) as usize]
                         .filled
-                        .is_some()
+                        .is_some()) {
+                        Some(val) => val,
+                        None => continue,
+                    }
                 }
                 collides
             } {
-                if row < 20 - piece.height(0) {
+                if row < 20 - piece.height(rotation) {
                     target_row = row + 1;
                     break;
                 } else {
@@ -125,7 +115,7 @@ impl Board {
                 }
             }
         }
-        for (x, y) in piece.filled() {
+        for (x, y) in piece.filled(rotation) {
             self.board[target_row + *x as usize][(column + *y) as usize].filled = Some(piece)
         }
     }
@@ -154,13 +144,13 @@ impl EventHandler for Tetris {
             if self.current_batch.is_empty() {
                 generate_batch(&mut self.rng, &mut self.current_batch)
             }
-            println!("{:?}", self.current_batch);
         }
         if let Some(time) = &mut self.next_tick {
             while Instant::now() > *time {
                 let piece = self.current_batch.pop().unwrap();
-                let column = self.rng.gen_range(0, 11 - piece.width(0) as u8);
-                self.board.hard_drop(piece, column, 2);
+                let rotation = self.rng.gen_range(0, 2);
+                let column = self.rng.gen_range(0, 11 - piece.width(rotation) as u8);
+                self.board.hard_drop(piece, column, rotation);
                 *time += self.tick_speed;
             }
         }
@@ -226,7 +216,7 @@ fn main() {
     let mut test = Tetris::default();
     let rng = rand::thread_rng();
     test.rng = rng;
-    test.tick_speed = Duration::from_millis(100);
+    test.tick_speed = Duration::from_millis(500);
     test.next_tick = Some(Instant::now() + Duration::from_millis(500));
     match event::run(&mut ctx, &mut event_loop, &mut test) {
         Ok(_) => println!("Exited cleanly."),

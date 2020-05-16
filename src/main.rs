@@ -36,31 +36,31 @@ impl Piece {
         }
     }
     fn height(&self, rotation: u8) -> usize {
-        match rotation {
-            0 => match self {
-                    Self::I => 1,
-                    _ => 2,
-                },
-            1 => match self {
-                Self::O => 2,
-                Self::I => 4,
-                _ => 3,
-            },
-            _ => unimplemented!(),
-        }
-    }
-    fn width(&self, rotation: u8) -> usize {
-        match rotation {
-            0 => match self {
-                    Self::O => 2,
-                    Self::I => 4,
-                    _ => 3,
-                },
-            1 => match self {
+        if rotation % 2 == 0 {
+            match self {
                 Self::I => 1,
                 _ => 2,
             }
-            _ => unimplemented!(),
+        } else {
+            match self {
+                Self::O => 2,
+                Self::I => 4,
+                _ => 3,
+            }
+        }
+    }
+    fn width(&self, rotation: u8) -> usize {
+        if rotation % 2 == 0 {
+            match self {
+                Self::O => 2,
+                Self::I => 4,
+                _ => 3,
+            }
+        } else {
+            match self {
+                Self::I => 1,
+                _ => 2,
+            }
         }
     }
     fn color(&self) -> Color {
@@ -148,7 +148,7 @@ impl EventHandler for Tetris {
         if let Some(time) = &mut self.next_tick {
             while Instant::now() > *time {
                 let piece = self.current_batch.pop().unwrap();
-                let rotation = self.rng.gen_range(0, 2);
+                let rotation = self.rng.gen_range(0, 4);
                 let column = self.rng.gen_range(0, 11 - piece.width(rotation) as u8);
                 self.board.hard_drop(piece, column, rotation);
                 *time += self.tick_speed;

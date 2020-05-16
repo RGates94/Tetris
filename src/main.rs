@@ -129,7 +129,7 @@ impl Tetromino {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone)]
 struct Cell {
     filled: Option<Tetromino>,
 }
@@ -201,6 +201,7 @@ impl Board {
             }
         }
         self.place_unchecked(piece);
+        self.clear_lines();
     }
     fn _place_checked(&mut self, piece: Piece) -> bool {
         if self.check_collision(piece) {
@@ -214,6 +215,16 @@ impl Board {
         for (x, y) in piece.filled() {
             self.board[x as usize][y as usize].filled = Some(piece.kind)
         }
+    }
+    fn clear_lines(&mut self) {
+        self.board = array_init::from_iter(
+            self.board
+                .iter()
+                .filter(|row| row.iter().position(|cell| cell.filled.is_none()).is_some())
+                .map(|x| (*x).clone())
+                .chain([[Cell::default(); 10]; 1].iter().cycle().map(|x| *x)),
+        )
+        .unwrap();
     }
     fn draw_board_ggez(&self, ctx: &mut Context, x: f32, y: f32) -> GameResult {
         for (ypos, row) in self.board.iter().enumerate() {

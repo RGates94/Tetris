@@ -1,5 +1,5 @@
 use filled::FILLED;
-use ggez::event::{self, EventHandler};
+use ggez::event::{self, EventHandler, KeyCode, KeyMods};
 use ggez::graphics;
 use ggez::graphics::{window, Color, Rect};
 use ggez::{Context, ContextBuilder, GameResult};
@@ -44,6 +44,23 @@ impl Piece {
             column: self.column,
             row: self.row,
         }
+    }
+    fn draw_ggez(&self, ctx: &mut Context, x: f32, y: f32) -> GameResult {
+        for (ypos, xpos) in self.filled() {
+                    let rectangle = graphics::Mesh::new_rectangle(
+                        ctx,
+                        graphics::DrawMode::fill(),
+                        Rect::new(
+                            x + 1.0 + 16.0 * xpos as f32,
+                            y + 1.0 - 16.0 * (ypos + 1) as f32,
+                            14.0,
+                            14.0,
+                        ),
+                        self.kind.color(),
+                    )?;
+                    graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 },))?;
+        }
+        Ok(())
     }
 }
 
@@ -136,6 +153,24 @@ impl Board {
             }
         }
         collides
+    }
+    fn move_piece_left(&mut self, piece: &mut Piece) {
+        if piece.column <= 0 {
+            return
+        }
+        piece.column -= 1;
+        if self.check_collision(*piece) {
+            piece.column +=1
+        }
+    }
+    fn move_piece_right(&mut self, piece: &mut Piece) {
+        if piece.column >= 10 - piece.kind.width(piece.rotation as u8) as u8 {
+            return
+        }
+        piece.column += 1;
+        if self.check_collision(*piece) {
+            piece.column -=1
+        }
     }
     fn hard_drop(&mut self, mut piece: Piece) {
         if piece.column >= 10 {
@@ -235,9 +270,17 @@ impl Tetris {
 
 impl EventHandler for Tetris {
     fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
+        if self.current_piece.is_none() {
+            self.current_piece = Some(Piece {
+                        kind: self.next_piece(),
+                        column: 3,
+                        row: 18,
+                        rotation: 0,
+                    });
+        }
         if let Some(mut time) = self.next_tick {
             while Instant::now() > time {
-                self.place_random();
+                //self.place_random();
                 time += self.tick_speed;
             }
             self.next_tick = Some(time);
@@ -278,8 +321,38 @@ impl EventHandler for Tetris {
 
         self.board
             .draw_board_ggez(ctx, width as f32 / 2.0 - 80.0, height as f32)?;
+        if let Some(piece) = self.current_piece {
+            piece.draw_ggez(ctx, width as f32 / 2.0 - 80.0, height as f32)?;
+        }
 
         graphics::present(ctx)
+    }
+    fn key_down_event(&mut self,
+                      ctx: &mut Context,
+                      keycode: KeyCode,
+                      _keymods: KeyMods,
+                      _repeat: bool) {
+        match keycode {
+            KeyCode::Up => {
+                if let Some(piece) = self.current_piece {
+                    self.board.hard_drop(piece);
+                }
+                self.current_piece = None;
+            },
+            KeyCode::Left => {
+                if let Some(mut piece) = self.current_piece {
+                    self.board.move_piece_left(&mut piece);
+                    self.current_piece = Some(piece);
+                }
+            },
+            KeyCode::Right => {
+                if let Some(mut piece) = self.current_piece {
+                    self.board.move_piece_right(&mut piece);
+                    self.current_piece = Some(piece);
+                }
+            },
+            _ => {}
+        };
     }
 }
 

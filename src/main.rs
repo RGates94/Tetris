@@ -96,10 +96,10 @@ struct Board {
 }
 
 impl Board {
-    fn check_collision(&self, piece: Tetromino, column: u8, row: u8, rotation: u8) -> bool {
+    fn check_collision(&self, piece: Piece) -> bool {
         let mut collides = false;
-        for (x, y) in piece.filled(rotation) {
-            collides |= match self.board.get((row + *x) as usize).map(|x|x[(column + *y) as usize]
+        for (x, y) in piece.kind.filled(piece.rotation) {
+            collides |= match self.board.get((piece.row + *x) as usize).map(|x|x[(piece.column + *y) as usize]
                 .filled
                 .is_some()) {
                 Some(val) => val,
@@ -108,17 +108,17 @@ impl Board {
         }
         collides
     }
-    fn hard_drop(&mut self, piece: Piece) {
+    fn hard_drop(&mut self, mut piece: Piece) {
         if piece.column >= 10 {
             return;
         }
-        let mut target_row = 0;
-        for y in (0..piece.row).rev() {
+        while piece.row > 0 {
+            piece.row -= 1;
             if {
-                self.check_collision(piece.kind,piece.column,y,piece.rotation)
+                self.check_collision(piece)
             } {
-                if y < 20 - piece.kind.height(piece.rotation) as u8 {
-                    target_row = y + 1;
+                if piece.row < 20 - piece.kind.height(piece.rotation) as u8 {
+                    piece.row += 1;
                     break;
                 } else {
                     *self = Board::default();
@@ -126,16 +126,16 @@ impl Board {
                 }
             }
         }
-        self.place_unchecked(piece.kind, piece.column, target_row, piece.rotation);
+        self.place_unchecked(piece.kind, piece.column, piece.row, piece.rotation);
     }
-    fn _place_checked(&mut self, piece: Tetromino, column: u8, row: u8, rotation: u8) -> bool {
+    /*fn _place_checked(&mut self, piece: Tetromino, column: u8, row: u8, rotation: u8) -> bool {
         if self.check_collision(piece,column,row,rotation) {
             self.place_unchecked(piece,column,row,rotation);
             true
         } else {
             false
         }
-    }
+    }*/
     fn place_unchecked(&mut self, piece: Tetromino, column: u8, row: u8, rotation: u8) {
         for (x, y) in piece.filled(rotation) {
             self.board[(row + *x) as usize][(column + *y) as usize].filled = Some(piece)

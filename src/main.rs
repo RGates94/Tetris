@@ -156,6 +156,33 @@ impl EventHandler for Tetris {
 
         let (width, height): (f64, f64) = window(&ctx).get_inner_size().unwrap().into();
 
+        let outer = graphics::Mesh::new_rectangle(
+            ctx,
+            graphics::DrawMode::fill(),
+            Rect::new(
+                width as f32 / 2.0 - 89.0,
+                height as f32 - 329.0,
+                178.0,
+                329.0,
+            ),
+            (63,191,191).into(),
+        )?;
+
+        let inner = graphics::Mesh::new_rectangle(
+            ctx,
+            graphics::DrawMode::fill(),
+            Rect::new(
+                width as f32 / 2.0 - 81.0,
+                height as f32 - 321.0,
+                162.0,
+                321.0,
+            ),
+            (0,0,0).into(),
+        )?;
+
+        graphics::draw(ctx, &outer, (ggez::mint::Point2 { x: 0.0, y: 0.0 },))?;
+        graphics::draw(ctx, &inner, (ggez::mint::Point2 { x: 0.0, y: 0.0 },))?;
+
         for (ypos, row) in self.board.board.iter().enumerate() {
             for (xpos, cell) in row.iter().enumerate() {
                 if cell.filled.is_some() {
@@ -163,8 +190,8 @@ impl EventHandler for Tetris {
                         ctx,
                         graphics::DrawMode::fill(),
                         Rect::new(
-                            width as f32 / 2.0 - 80.0 + 16.0 * xpos as f32,
-                            height as f32 - 16.0 * (ypos + 1) as f32,
+                            width as f32 / 2.0 - 79.0 + 16.0 * xpos as f32,
+                            height as f32 + 1.0 - 16.0 * (ypos + 1) as f32,
                             14.0,
                             14.0,
                         ),

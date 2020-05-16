@@ -47,18 +47,18 @@ impl Piece {
     }
     fn draw_ggez(&self, ctx: &mut Context, x: f32, y: f32) -> GameResult {
         for (ypos, xpos) in self.filled() {
-                    let rectangle = graphics::Mesh::new_rectangle(
-                        ctx,
-                        graphics::DrawMode::fill(),
-                        Rect::new(
-                            x + 1.0 + 16.0 * xpos as f32,
-                            y + 1.0 - 16.0 * (ypos + 1) as f32,
-                            14.0,
-                            14.0,
-                        ),
-                        self.kind.color(),
-                    )?;
-                    graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 },))?;
+            let rectangle = graphics::Mesh::new_rectangle(
+                ctx,
+                graphics::DrawMode::fill(),
+                Rect::new(
+                    x + 1.0 + 16.0 * xpos as f32,
+                    y + 1.0 - 16.0 * (ypos + 1) as f32,
+                    14.0,
+                    14.0,
+                ),
+                self.kind.color(),
+            )?;
+            graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 },))?;
         }
         Ok(())
     }
@@ -156,20 +156,20 @@ impl Board {
     }
     fn move_piece_left(&mut self, piece: &mut Piece) {
         if piece.column <= 0 {
-            return
+            return;
         }
         piece.column -= 1;
         if self.check_collision(*piece) {
-            piece.column +=1
+            piece.column += 1
         }
     }
     fn move_piece_right(&mut self, piece: &mut Piece) {
         if piece.column >= 10 - piece.kind.width(piece.rotation as u8) as u8 {
-            return
+            return;
         }
         piece.column += 1;
         if self.check_collision(*piece) {
-            piece.column -=1
+            piece.column -= 1
         }
     }
     fn hard_drop(&mut self, mut piece: Piece) {
@@ -200,8 +200,7 @@ impl Board {
     }
     fn place_unchecked(&mut self, piece: Piece) {
         for (x, y) in piece.filled() {
-            self.board[x as usize][y as usize].filled =
-                Some(piece.kind)
+            self.board[x as usize][y as usize].filled = Some(piece.kind)
         }
     }
     fn draw_board_ggez(&self, ctx: &mut Context, x: f32, y: f32) -> GameResult {
@@ -254,7 +253,7 @@ impl Tetris {
         }
         self.current_batch.pop().unwrap()
     }
-    fn place_random(&mut self) {
+    fn _place_random(&mut self) {
         let kind = self.next_piece();
         let rotation = self.rng.gen_range(0, 4);
         let column = self.rng.gen_range(0, 11 - kind.width(rotation) as u8);
@@ -272,11 +271,11 @@ impl EventHandler for Tetris {
     fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
         if self.current_piece.is_none() {
             self.current_piece = Some(Piece {
-                        kind: self.next_piece(),
-                        column: 3,
-                        row: 18,
-                        rotation: 0,
-                    });
+                kind: self.next_piece(),
+                column: 3,
+                row: 18,
+                rotation: 0,
+            });
         }
         if let Some(mut time) = self.next_tick {
             while Instant::now() > time {
@@ -327,30 +326,32 @@ impl EventHandler for Tetris {
 
         graphics::present(ctx)
     }
-    fn key_down_event(&mut self,
-                      ctx: &mut Context,
-                      keycode: KeyCode,
-                      _keymods: KeyMods,
-                      _repeat: bool) {
+    fn key_down_event(
+        &mut self,
+        _ctx: &mut Context,
+        keycode: KeyCode,
+        _keymods: KeyMods,
+        _repeat: bool,
+    ) {
         match keycode {
             KeyCode::Up => {
                 if let Some(piece) = self.current_piece {
                     self.board.hard_drop(piece);
                 }
                 self.current_piece = None;
-            },
+            }
             KeyCode::Left => {
                 if let Some(mut piece) = self.current_piece {
                     self.board.move_piece_left(&mut piece);
                     self.current_piece = Some(piece);
                 }
-            },
+            }
             KeyCode::Right => {
                 if let Some(mut piece) = self.current_piece {
                     self.board.move_piece_right(&mut piece);
                     self.current_piece = Some(piece);
                 }
-            },
+            }
             _ => {}
         };
     }

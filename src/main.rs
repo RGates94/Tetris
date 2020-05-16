@@ -20,6 +20,33 @@ struct Piece {
     rotation: u8,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct PieceBlockIter<'a> {
+    block_kind: &'a [(u8, u8)],
+    column: u8,
+    row: u8,
+}
+
+impl<'a> Iterator for PieceBlockIter<'a> {
+    type Item = (u8, u8);
+
+    fn next(&mut self) -> Option<(u8, u8)> {
+        let ((x, y), remaining) = self.block_kind.split_first()?;
+        self.block_kind = remaining;
+        Some((*x + self.row, *y + self.column))
+    }
+}
+
+impl Piece {
+    fn filled(&self) -> PieceBlockIter {
+        PieceBlockIter {
+            block_kind: self.kind.filled(self.rotation),
+            column: self.column,
+            row: self.row,
+        }
+    }
+}
+
 #[derive(Debug, FromPrimitive, Clone, Copy)]
 enum Tetromino {
     O,
@@ -98,11 +125,11 @@ struct Board {
 impl Board {
     fn check_collision(&self, piece: Piece) -> bool {
         let mut collides = false;
-        for (x, y) in piece.kind.filled(piece.rotation) {
+        for (x, y) in piece.filled() {
             collides |= match self
                 .board
-                .get((piece.row + *x) as usize)
-                .map(|x| x[(piece.column + *y) as usize].filled.is_some())
+                .get(x as usize)
+                .map(|x| x[y as usize].filled.is_some())
             {
                 Some(val) => val,
                 None => continue,
@@ -138,7 +165,8 @@ impl Board {
     }
     fn place_unchecked(&mut self, piece: Piece) {
         for (x, y) in piece.kind.filled(piece.rotation) {
-            self.board[(piece.row + *x) as usize][(piece.column + *y) as usize].filled = Some(piece.kind)
+            self.board[(piece.row + *x) as usize][(piece.column + *y) as usize].filled =
+                Some(piece.kind)
         }
     }
     fn draw_board_ggez(&self, ctx: &mut Context, x: f32, y: f32) -> GameResult {
@@ -177,7 +205,7 @@ struct Tetris {
     rng: ThreadRng,
     current_batch: Vec<Tetromino>,
     next_batch: Vec<Tetromino>,
-    next_piece: Option<Piece>,
+    current_piece: Option<Piece>,
 }
 
 impl Tetris {

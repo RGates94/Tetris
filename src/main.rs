@@ -172,6 +172,22 @@ impl Board {
             piece.column -= 1
         }
     }
+    fn move_piece_down(&mut self, piece: &mut Piece) -> bool {
+        if piece.row <= 0 {
+            //soft drop when this is implemented
+            self.hard_drop(*piece);
+            true
+        } else {
+            piece.row -= 1;
+            if self.check_collision(*piece) {
+                piece.row += 1;
+                self.hard_drop(*piece);
+                return true;
+            }
+            false
+        }
+
+    }
     fn rotate_piece_clockwise(&self, piece: &mut Piece) {
         piece.rotation = (piece.rotation + 1) % 4;
         if self.check_collision(*piece) {
@@ -301,11 +317,19 @@ impl EventHandler for Tetris {
             });
         }
         if let Some(mut time) = self.next_tick {
-            while Instant::now() > time {
-                //self.place_random();
-                time += self.tick_speed;
+            if let Some(mut piece) = self.current_piece {
+                while Instant::now() > time {
+                    if self.board.move_piece_down(&mut piece) {
+                        self.current_piece = None;
+                    } else {
+                        self.current_piece = Some(piece);
+                        self.tick_speed *= 499;
+                        self.tick_speed /= 500;
+                    }
+                    time += self.tick_speed;
+                }
+                self.next_tick = Some(time);
             }
-            self.next_tick = Some(time);
         }
         Ok(())
     }
@@ -354,8 +378,11 @@ impl EventHandler for Tetris {
         _ctx: &mut Context,
         keycode: KeyCode,
         _keymods: KeyMods,
-        _repeat: bool,
+        repeat: bool,
     ) {
+        if repeat {
+            return;
+        }
         match keycode {
             KeyCode::Up => {
                 if let Some(piece) = self.current_piece {

@@ -1,6 +1,6 @@
 use ggez::event::{self, EventHandler};
 use ggez::graphics;
-use ggez::graphics::{window, Rect};
+use ggez::graphics::{window, Color, Rect};
 use ggez::{Context, ContextBuilder, GameResult};
 use num_derive::FromPrimitive;
 use num_traits::cast::FromPrimitive;
@@ -75,11 +75,23 @@ impl Piece {
             _ => 3,
         }
     }
+    fn color(&self) -> Color {
+        match self {
+            Self::O => (255, 255, 0),
+            Self::T => (255, 0, 255),
+            Self::L => (255, 127, 0),
+            Self::J => (63, 63, 255),
+            Self::S => (63, 255, 63),
+            Self::Z => (255, 0, 0),
+            Self::I => (0, 255, 255),
+        }
+        .into()
+    }
 }
 
 #[derive(Default, Debug)]
 struct Cell {
-    filled: bool,
+    filled: Option<Piece>,
 }
 
 #[derive(Default, Debug)]
@@ -97,7 +109,9 @@ impl Board {
             if {
                 let mut collides = false;
                 for (x, y) in piece.filled() {
-                    collides |= self.board[row + *x as usize][(column + *y) as usize].filled
+                    collides |= self.board[row + *x as usize][(column + *y) as usize]
+                        .filled
+                        .is_some()
                 }
                 collides
             } {
@@ -111,7 +125,7 @@ impl Board {
             }
         }
         for (x, y) in piece.filled() {
-            self.board[target_row + *x as usize][(column + *y) as usize].filled = true
+            self.board[target_row + *x as usize][(column + *y) as usize].filled = Some(piece)
         }
     }
 }
@@ -144,7 +158,7 @@ impl EventHandler for Tetris {
 
         for (ypos, row) in self.board.board.iter().enumerate() {
             for (xpos, cell) in row.iter().enumerate() {
-                if cell.filled {
+                if cell.filled.is_some() {
                     let rectangle = graphics::Mesh::new_rectangle(
                         ctx,
                         graphics::DrawMode::fill(),
@@ -154,7 +168,7 @@ impl EventHandler for Tetris {
                             14.0,
                             14.0,
                         ),
-                        [0.25, 0.75, 0.75, 1.0].into(),
+                        cell.filled.unwrap().color(),
                     )?;
                     graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 },))?;
                 }
@@ -170,7 +184,7 @@ fn main() {
     let mut test = Tetris::default();
     let rng = rand::thread_rng();
     test.rng = rng;
-    test.tick_speed = Duration::from_millis(500);
+    test.tick_speed = Duration::from_millis(100);
     test.next_tick = Some(Instant::now() + Duration::from_millis(500));
     match event::run(&mut ctx, &mut event_loop, &mut test) {
         Ok(_) => println!("Exited cleanly."),

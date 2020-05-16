@@ -12,8 +12,16 @@ use filled::FILLED;
 
 mod filled;
 
+#[derive(Debug, Clone, Copy)]
+struct Piece {
+    kind: Tetromino,
+    column: u8,
+    row: u8,
+    rotation: u8,
+}
+
 #[derive(Debug, FromPrimitive, Clone, Copy)]
-enum Piece {
+enum Tetromino {
     O,
     T,
     L,
@@ -23,7 +31,7 @@ enum Piece {
     I,
 }
 
-impl Piece {
+impl Tetromino {
     fn filled(&self, rotation: u8) -> &[(u8, u8)] {
         match self {
             Self::O => &FILLED[rotation as usize][0..4],
@@ -79,7 +87,7 @@ impl Piece {
 
 #[derive(Default, Debug)]
 struct Cell {
-    filled: Option<Piece>,
+    filled: Option<Tetromino>,
 }
 
 #[derive(Default, Debug)]
@@ -88,7 +96,7 @@ struct Board {
 }
 
 impl Board {
-    fn check_collision(&self, piece: Piece, column: u8, row: u8, rotation: u8) -> bool {
+    fn check_collision(&self, piece: Tetromino, column: u8, row: u8, rotation: u8) -> bool {
         let mut collides = false;
         for (x, y) in piece.filled(rotation) {
             collides |= match self.board.get((row + *x) as usize).map(|x|x[(column + *y) as usize]
@@ -100,17 +108,17 @@ impl Board {
         }
         collides
     }
-    fn hard_drop(&mut self, piece: Piece, column: u8, rotation: u8) {
-        if column >= 10 {
+    fn hard_drop(&mut self, piece: Piece) {
+        if piece.column >= 10 {
             return;
         }
         let mut target_row = 0;
-        for row in (0..20).rev() {
+        for y in (0..piece.row).rev() {
             if {
-                self.check_collision(piece,column,row,rotation)
+                self.check_collision(piece.kind,piece.column,y,piece.rotation)
             } {
-                if (row as usize) < 20 - piece.height(rotation) {
-                    target_row = row + 1;
+                if y < 20 - piece.kind.height(piece.rotation) as u8 {
+                    target_row = y + 1;
                     break;
                 } else {
                     *self = Board::default();
@@ -118,9 +126,9 @@ impl Board {
                 }
             }
         }
-        self.place_unchecked(piece, column, target_row, rotation);
+        self.place_unchecked(piece.kind, piece.column, target_row, piece.rotation);
     }
-    fn _place_checked(&mut self, piece: Piece, column: u8, row: u8, rotation: u8) -> bool {
+    fn _place_checked(&mut self, piece: Tetromino, column: u8, row: u8, rotation: u8) -> bool {
         if self.check_collision(piece,column,row,rotation) {
             self.place_unchecked(piece,column,row,rotation);
             true
@@ -128,7 +136,7 @@ impl Board {
             false
         }
     }
-    fn place_unchecked(&mut self, piece: Piece, column: u8, row: u8, rotation: u8) {
+    fn place_unchecked(&mut self, piece: Tetromino, column: u8, row: u8, rotation: u8) {
         for (x, y) in piece.filled(rotation) {
             self.board[(row + *x) as usize][(column + *y) as usize].filled = Some(piece)
         }
@@ -156,8 +164,8 @@ impl Board {
     }
 }
 
-fn generate_batch(rng: &mut ThreadRng, batch: &mut Vec<Piece>) {
-    *batch = (0..7).map(|x| Piece::from_i8(x).unwrap()).collect();
+fn generate_batch(rng: &mut ThreadRng, batch: &mut Vec<Tetromino>) {
+    *batch = (0..7).map(|x| Tetromino::from_i8(x).unwrap()).collect();
     batch.shuffle(rng);
 }
 
@@ -167,12 +175,13 @@ struct Tetris {
     tick_speed: Duration,
     board: Board,
     rng: ThreadRng,
-    current_batch: Vec<Piece>,
-    next_batch: Vec<Piece>,
+    current_batch: Vec<Tetromino>,
+    next_batch: Vec<Tetromino>,
+    next_piece: Option<Piece>,
 }
 
 impl Tetris {
-    fn next_piece(&mut self) -> Piece {
+    fn next_piece(&mut self) -> Tetromino {
         if self.current_batch.is_empty() {
             swap(&mut self.current_batch, &mut self.next_batch);
             generate_batch(&mut self.rng, &mut self.next_batch);
@@ -183,10 +192,16 @@ impl Tetris {
         self.current_batch.pop().unwrap()
     }
     fn place_random(&mut self) {
-        let piece = self.next_piece();
+        let kind = self.next_piece();
         let rotation = self.rng.gen_range(0, 4);
-        let column = self.rng.gen_range(0, 11 - piece.width(rotation) as u8);
-        self.board.hard_drop(piece, column, rotation);
+        let column = self.rng.gen_range(0, 11 - kind.width(rotation) as u8);
+        let piece = Piece {
+            kind,
+            column,
+            row: 20,
+            rotation
+        };
+        self.board.hard_drop(piece);
     }
 }
 

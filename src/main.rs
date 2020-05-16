@@ -68,6 +68,13 @@ impl Piece {
             _ => 2,
         }
     }
+    fn width(&self, _rotation: u8) -> usize {
+        match self {
+            Self::O => 2,
+            Self::I => 4,
+            _ => 3,
+        }
+    }
 }
 
 #[derive(Default, Debug)]
@@ -120,9 +127,10 @@ struct Tetris {
 impl EventHandler for Tetris {
     fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
         let piece = Piece::from_isize(self.rng.gen_range::<isize, _, _>(0, 7)).unwrap();
+        let column = self.rng.gen_range(0, 11 - piece.width(0) as u8);
         if let Some(time) = &mut self.next_tick {
             while Instant::now() > *time {
-                self.board.hard_drop(piece, 6, 2);
+                self.board.hard_drop(piece, column, 2);
                 *time += self.tick_speed;
             }
         }
@@ -161,17 +169,9 @@ fn main() {
     let (mut ctx, mut event_loop) = ContextBuilder::new("Tetris", "ix").build().unwrap();
     let mut test = Tetris::default();
     let rng = rand::thread_rng();
-
-    println!("{:?}", test);
-    test.board.hard_drop(Piece::O, 3, 3);
-    println!("{:?}", test);
-    test.board.hard_drop(Piece::T, 4, 2);
-    println!("{:?}", test);
     test.rng = rng;
     test.tick_speed = Duration::from_millis(500);
-    test.next_tick = Some(Instant::now() + Duration::from_millis(2000));
-
-    // Run!
+    test.next_tick = Some(Instant::now() + Duration::from_millis(500));
     match event::run(&mut ctx, &mut event_loop, &mut test) {
         Ok(_) => println!("Exited cleanly."),
         Err(e) => println!("Error occured: {}", e),

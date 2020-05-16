@@ -143,34 +143,48 @@ impl Board {
     fn check_collision(&self, piece: Piece) -> bool {
         let mut collides = false;
         for (x, y) in piece.filled() {
-            collides |= match self
-                .board
-                .get(x as usize)
-                .map(|x| x[y as usize].filled.is_some())
-            {
+            collides |= match self.board.get(x as usize).map(|x| {
+                if let Some(z) = x.get(y as usize) {
+                    z.filled.is_some()
+                } else {
+                    true
+                }
+            }) {
                 Some(val) => val,
                 None => continue,
             }
         }
         collides
     }
-    fn move_piece_left(&self, piece: &mut Piece) {
+    fn move_piece_left(&self, piece: &mut Piece) -> bool {
         if piece.column <= 0 {
-            return;
+            return false;
         }
         piece.column -= 1;
         if self.check_collision(*piece) {
-            piece.column += 1
+            piece.column += 1;
+            false
+        } else {
+            true
         }
     }
-    fn move_piece_right(&self, piece: &mut Piece) {
+    fn move_piece_right(&self, piece: &mut Piece) -> bool {
         if piece.column >= 10 - piece.kind.width(piece.rotation as u8) as u8 {
-            return;
+            return false;
         }
         piece.column += 1;
         if self.check_collision(*piece) {
-            piece.column -= 1
+            piece.column -= 1;
+            false
+        } else {
+            true
         }
+    }
+    fn das_left(&self, piece: &mut Piece) {
+        while self.move_piece_left(piece) {}
+    }
+    fn das_right(&self, piece: &mut Piece) {
+        while self.move_piece_right(piece) {}
     }
     fn move_piece_down(&mut self, piece: &mut Piece) -> bool {
         if piece.row <= 0 {
@@ -186,7 +200,6 @@ impl Board {
             }
             false
         }
-
     }
     fn rotate_piece_clockwise(&self, piece: &mut Piece) {
         piece.rotation = (piece.rotation + 1) % 4;
@@ -279,6 +292,7 @@ struct Tetris {
     current_batch: Vec<Tetromino>,
     next_batch: Vec<Tetromino>,
     current_piece: Option<Piece>,
+    das_time: Option<(Instant, bool)>,
 }
 
 impl Tetris {
@@ -318,6 +332,17 @@ impl EventHandler for Tetris {
         }
         if let Some(mut time) = self.next_tick {
             if let Some(mut piece) = self.current_piece {
+                if let Some((das_time, right)) = self.das_time {
+                    if das_time < Instant::now() {
+                        if right {
+                            self.board.das_right(&mut piece)
+                        } else {
+                            self.board.das_left(&mut piece)
+                        }
+                        self.das_time = None;
+                    }
+                }
+                self.current_piece = Some(piece);
                 while Instant::now() > time {
                     if self.board.move_piece_down(&mut piece) {
                         self.current_piece = None;
@@ -393,12 +418,14 @@ impl EventHandler for Tetris {
             KeyCode::Left => {
                 if let Some(mut piece) = self.current_piece {
                     self.board.move_piece_left(&mut piece);
+                    self.das_time = Some((Instant::now() + Duration::from_millis(100), false));
                     self.current_piece = Some(piece);
                 }
             }
             KeyCode::Right => {
                 if let Some(mut piece) = self.current_piece {
                     self.board.move_piece_right(&mut piece);
+                    self.das_time = Some((Instant::now() + Duration::from_millis(100), true));
                     self.current_piece = Some(piece);
                 }
             }
@@ -416,6 +443,29 @@ impl EventHandler for Tetris {
             }
             _ => {}
         };
+    }
+    fn key_up_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods) {
+        match keycode {
+            KeyCode::Left => {
+                if !if let Some((_, right)) = self.das_time {
+                    right
+                } else {
+                    true
+                } {
+                    self.das_time = None;
+                }
+            }
+            KeyCode::Right => {
+                if if let Some((_, right)) = self.das_time {
+                    right
+                } else {
+                    false
+                } {
+                    self.das_time = None;
+                }
+            }
+            _ => {}
+        }
     }
 }
 

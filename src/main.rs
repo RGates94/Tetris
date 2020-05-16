@@ -154,7 +154,7 @@ impl Board {
         }
         collides
     }
-    fn move_piece_left(&mut self, piece: &mut Piece) {
+    fn move_piece_left(&self, piece: &mut Piece) {
         if piece.column <= 0 {
             return;
         }
@@ -163,13 +163,25 @@ impl Board {
             piece.column += 1
         }
     }
-    fn move_piece_right(&mut self, piece: &mut Piece) {
+    fn move_piece_right(&self, piece: &mut Piece) {
         if piece.column >= 10 - piece.kind.width(piece.rotation as u8) as u8 {
             return;
         }
         piece.column += 1;
         if self.check_collision(*piece) {
             piece.column -= 1
+        }
+    }
+    fn rotate_piece_clockwise(&self, piece: &mut Piece) {
+        piece.rotation = (piece.rotation + 1) % 4;
+        if self.check_collision(*piece) {
+            piece.rotation = (piece.rotation + 3) % 4;
+        }
+    }
+    fn rotate_piece_counterclockwise(&self, piece: &mut Piece) {
+        piece.rotation = (piece.rotation + 3) % 4;
+        if self.check_collision(*piece) {
+            piece.rotation = (piece.rotation + 1) % 4;
         }
     }
     fn hard_drop(&mut self, mut piece: Piece) {
@@ -349,6 +361,18 @@ impl EventHandler for Tetris {
             KeyCode::Right => {
                 if let Some(mut piece) = self.current_piece {
                     self.board.move_piece_right(&mut piece);
+                    self.current_piece = Some(piece);
+                }
+            }
+            KeyCode::X => {
+                if let Some(mut piece) = self.current_piece {
+                    self.board.rotate_piece_clockwise(&mut piece);
+                    self.current_piece = Some(piece);
+                }
+            }
+            KeyCode::Z => {
+                if let Some(mut piece) = self.current_piece {
+                    self.board.rotate_piece_counterclockwise(&mut piece);
                     self.current_piece = Some(piece);
                 }
             }

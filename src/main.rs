@@ -164,8 +164,8 @@ impl Board {
         }
     }
     fn place_unchecked(&mut self, piece: Piece) {
-        for (x, y) in piece.kind.filled(piece.rotation) {
-            self.board[(piece.row + *x) as usize][(piece.column + *y) as usize].filled =
+        for (x, y) in piece.filled() {
+            self.board[x as usize][y as usize].filled =
                 Some(piece.kind)
         }
     }

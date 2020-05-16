@@ -4,8 +4,9 @@ use ggez::graphics::{window, Color, Rect};
 use ggez::{Context, ContextBuilder, GameResult};
 use num_derive::FromPrimitive;
 use num_traits::cast::FromPrimitive;
-use rand::prelude::ThreadRng;
+use rand::prelude::{SliceRandom, ThreadRng};
 use rand::Rng;
+use std::mem::swap;
 use std::time::{Duration, Instant};
 
 #[derive(Debug, FromPrimitive, Clone, Copy)]
@@ -130,27 +131,41 @@ impl Board {
     }
 }
 
+fn generate_batch(rng: &mut ThreadRng, batch: &mut Vec<Piece>) {
+    *batch = (0..7).map(|x| Piece::from_i8(x).unwrap()).collect();
+    batch.shuffle(rng);
+}
+
 #[derive(Default, Debug)]
 struct Tetris {
     next_tick: Option<Instant>,
     tick_speed: Duration,
     board: Board,
     rng: ThreadRng,
+    current_batch: Vec<Piece>,
+    next_batch: Vec<Piece>,
 }
 
 impl EventHandler for Tetris {
     fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
-        let piece = Piece::from_isize(self.rng.gen_range::<isize, _, _>(0, 7)).unwrap();
-        let column = self.rng.gen_range(0, 11 - piece.width(0) as u8);
+        if self.current_batch.is_empty() {
+            swap(&mut self.current_batch, &mut self.next_batch);
+            generate_batch(&mut self.rng, &mut self.next_batch);
+            if self.current_batch.is_empty() {
+                generate_batch(&mut self.rng, &mut self.current_batch)
+            }
+            println!("{:?}", self.current_batch);
+        }
         if let Some(time) = &mut self.next_tick {
             while Instant::now() > *time {
+                let piece = self.current_batch.pop().unwrap();
+                let column = self.rng.gen_range(0, 11 - piece.width(0) as u8);
                 self.board.hard_drop(piece, column, 2);
                 *time += self.tick_speed;
             }
         }
         Ok(())
     }
-
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx, graphics::BLACK);
 
@@ -165,7 +180,7 @@ impl EventHandler for Tetris {
                 178.0,
                 329.0,
             ),
-            (63,191,191).into(),
+            (63, 191, 191).into(),
         )?;
 
         let inner = graphics::Mesh::new_rectangle(
@@ -177,7 +192,7 @@ impl EventHandler for Tetris {
                 162.0,
                 321.0,
             ),
-            (0,0,0).into(),
+            (0, 0, 0).into(),
         )?;
 
         graphics::draw(ctx, &outer, (ggez::mint::Point2 { x: 0.0, y: 0.0 },))?;

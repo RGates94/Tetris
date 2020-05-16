@@ -1,3 +1,4 @@
+use filled::FILLED;
 use ggez::event::{self, EventHandler};
 use ggez::graphics;
 use ggez::graphics::{window, Color, Rect};
@@ -8,7 +9,6 @@ use rand::prelude::{SliceRandom, ThreadRng};
 use rand::Rng;
 use std::mem::swap;
 use std::time::{Duration, Instant};
-use filled::FILLED;
 
 mod filled;
 
@@ -99,9 +99,11 @@ impl Board {
     fn check_collision(&self, piece: Piece) -> bool {
         let mut collides = false;
         for (x, y) in piece.kind.filled(piece.rotation) {
-            collides |= match self.board.get((piece.row + *x) as usize).map(|x|x[(piece.column + *y) as usize]
-                .filled
-                .is_some()) {
+            collides |= match self
+                .board
+                .get((piece.row + *x) as usize)
+                .map(|x| x[(piece.column + *y) as usize].filled.is_some())
+            {
                 Some(val) => val,
                 None => continue,
             }
@@ -114,9 +116,7 @@ impl Board {
         }
         while piece.row > 0 {
             piece.row -= 1;
-            if {
-                self.check_collision(piece)
-            } {
+            if { self.check_collision(piece) } {
                 if piece.row < 20 - piece.kind.height(piece.rotation) as u8 {
                     piece.row += 1;
                     break;
@@ -126,19 +126,19 @@ impl Board {
                 }
             }
         }
-        self.place_unchecked(piece.kind, piece.column, piece.row, piece.rotation);
+        self.place_unchecked(piece);
     }
-    /*fn _place_checked(&mut self, piece: Tetromino, column: u8, row: u8, rotation: u8) -> bool {
-        if self.check_collision(piece,column,row,rotation) {
-            self.place_unchecked(piece,column,row,rotation);
+    fn _place_checked(&mut self, piece: Piece) -> bool {
+        if self.check_collision(piece) {
+            self.place_unchecked(piece);
             true
         } else {
             false
         }
-    }*/
-    fn place_unchecked(&mut self, piece: Tetromino, column: u8, row: u8, rotation: u8) {
-        for (x, y) in piece.filled(rotation) {
-            self.board[(row + *x) as usize][(column + *y) as usize].filled = Some(piece)
+    }
+    fn place_unchecked(&mut self, piece: Piece) {
+        for (x, y) in piece.kind.filled(piece.rotation) {
+            self.board[(piece.row + *x) as usize][(piece.column + *y) as usize].filled = Some(piece.kind)
         }
     }
     fn draw_board_ggez(&self, ctx: &mut Context, x: f32, y: f32) -> GameResult {
@@ -199,7 +199,7 @@ impl Tetris {
             kind,
             column,
             row: 20,
-            rotation
+            rotation,
         };
         self.board.hard_drop(piece);
     }
@@ -248,7 +248,8 @@ impl EventHandler for Tetris {
         graphics::draw(ctx, &outer, (ggez::mint::Point2 { x: 0.0, y: 0.0 },))?;
         graphics::draw(ctx, &inner, (ggez::mint::Point2 { x: 0.0, y: 0.0 },))?;
 
-        self.board.draw_board_ggez(ctx, width as f32 / 2.0 - 80.0, height as f32)?;
+        self.board
+            .draw_board_ggez(ctx, width as f32 / 2.0 - 80.0, height as f32)?;
 
         graphics::present(ctx)
     }

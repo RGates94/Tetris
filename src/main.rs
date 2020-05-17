@@ -293,6 +293,7 @@ struct Tetris {
     next_batch: Vec<Tetromino>,
     current_piece: Option<Piece>,
     das_time: Option<(Instant, bool)>,
+    hold: (bool, Option<Tetromino>),
 }
 
 impl Tetris {
@@ -317,6 +318,27 @@ impl Tetris {
             rotation,
         };
         self.board.hard_drop(piece);
+    }
+    fn switch_hold(&mut self) {
+        if !self.hold.0 {
+            if let Some(mut current) = self.current_piece {
+                if let (_, Some(kind)) = &mut self.hold {
+                    swap(&mut current.kind, kind);
+                    current.column = 3;
+                    current.row = 18;
+                } else {
+                    self.hold.1 = Some(current.kind);
+                    current = Piece {
+                        kind: self.next_piece(),
+                        column: 3,
+                        row: 18,
+                        rotation: 0,
+                    };
+                }
+                self.hold.0 = true;
+                self.current_piece = Some(current);
+            }
+        }
     }
 }
 
@@ -396,6 +418,16 @@ impl EventHandler for Tetris {
             piece.draw_ggez(ctx, width as f32 / 2.0 - 80.0, height as f32)?;
         }
 
+        if let (_, Some(kind)) = self.hold {
+            Piece {
+                kind,
+                column: 0,
+                row: 18,
+                rotation: 0,
+            }
+            .draw_ggez(ctx, width as f32 / 2.0 - 160.0, height as f32)?;
+        }
+
         self.current_batch
             .iter()
             .rev()
@@ -427,6 +459,7 @@ impl EventHandler for Tetris {
             KeyCode::Up => {
                 if let Some(piece) = self.current_piece {
                     self.board.hard_drop(piece);
+                    self.hold.0 = false;
                 }
                 self.current_piece = None;
             }
@@ -443,6 +476,9 @@ impl EventHandler for Tetris {
                     self.das_time = Some((Instant::now() + Duration::from_millis(100), true));
                     self.current_piece = Some(piece);
                 }
+            }
+            KeyCode::C => {
+                self.switch_hold();
             }
             KeyCode::X => {
                 if let Some(mut piece) = self.current_piece {

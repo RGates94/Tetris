@@ -355,6 +355,9 @@ struct Tetris {
     hold: (bool, Option<Tetromino>),
     soft_dropping: bool,
     lines_remaining: Option<isize>,
+    start_time: Option<Instant>,
+    final_time: Option<Duration>,
+    halted: bool,
 }
 
 impl Tetris {
@@ -405,6 +408,19 @@ impl Tetris {
 
 impl EventHandler for Tetris {
     fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
+        if self.halted {
+            return Ok(());
+        }
+        if let Some(lines) = self.lines_remaining {
+            if lines <= 0 {
+                self.board = Board::default();
+                if let Some(start) = self.start_time {
+                    self.final_time = Some(Instant::now() - start);
+                }
+                self.lines_remaining = Some(40);
+                self.halted = true;
+            }
+        }
         if self.current_piece.is_none() {
             self.current_piece = Some(Piece {
                 kind: self.next_piece(),
@@ -528,6 +544,31 @@ impl EventHandler for Tetris {
             )?;
         }
 
+        if let Some(delta) = if let Some(time) = self.final_time {
+            Some(time)
+        } else if let Some(start) = self.start_time {
+            Some(Instant::now() - start)
+        } else {
+            None
+        } {
+            let time = graphics::Text::new(format!(
+                "{}:{:0>2}.{:0>3}",
+                delta.as_secs() / 60,
+                delta.as_secs() % 60,
+                delta.subsec_millis()
+            ));
+            graphics::draw(
+                ctx,
+                &time,
+                DrawParam::new()
+                    .dest(ggez::mint::Point2 {
+                        x: width as f32 / 2.0 - 240.0,
+                        y: (height - 200.0) as f32,
+                    })
+                    .scale([2.0, 2.0]),
+            )?;
+        }
+
         graphics::present(ctx)
     }
     fn key_down_event(
@@ -557,14 +598,14 @@ impl EventHandler for Tetris {
             KeyCode::Left => {
                 if let Some(mut piece) = self.current_piece {
                     self.board.move_piece_left(&mut piece);
-                    self.das_time = Some((Instant::now() + Duration::from_millis(60), false));
+                    self.das_time = Some((Instant::now() + Duration::from_millis(50), false));
                     self.current_piece = Some(piece);
                 }
             }
             KeyCode::Right => {
                 if let Some(mut piece) = self.current_piece {
                     self.board.move_piece_right(&mut piece);
-                    self.das_time = Some((Instant::now() + Duration::from_millis(60), true));
+                    self.das_time = Some((Instant::now() + Duration::from_millis(50), true));
                     self.current_piece = Some(piece);
                 }
             }
@@ -623,6 +664,7 @@ fn main() {
     test.soft_drop_speed = Duration::from_millis(20);
     test.next_tick = Some(Instant::now() + Duration::from_millis(1000));
     test.lines_remaining = Some(40);
+    test.start_time = Some(Instant::now());
     match event::run(&mut ctx, &mut event_loop, &mut test) {
         Ok(_) => println!("Exited cleanly."),
         Err(e) => println!("Error occured: {}", e),

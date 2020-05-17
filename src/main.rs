@@ -45,7 +45,7 @@ impl Piece {
             row: self.row,
         }
     }
-    fn draw_ggez(&self, ctx: &mut Context, x: f32, y: f32) -> GameResult {
+    fn draw_ggez(self, ctx: &mut Context, x: f32, y: f32) -> GameResult {
         for (ypos, xpos) in self.filled() {
             let rectangle = graphics::Mesh::new_rectangle(
                 ctx,
@@ -87,7 +87,7 @@ impl Tetromino {
             Self::I => &FILLED[rotation as usize][24..28],
         }
     }
-    fn height(&self, rotation: u8) -> usize {
+    fn height(self, rotation: u8) -> usize {
         if rotation % 2 == 0 {
             match self {
                 Self::I => 1,
@@ -101,7 +101,7 @@ impl Tetromino {
             }
         }
     }
-    fn width(&self, rotation: u8) -> usize {
+    fn width(self, rotation: u8) -> usize {
         if rotation % 2 == 0 {
             match self {
                 Self::O => 2,
@@ -115,7 +115,7 @@ impl Tetromino {
             }
         }
     }
-    fn color(&self) -> Color {
+    fn color(self) -> Color {
         match self {
             Self::O => (255, 255, 0),
             Self::T => (255, 0, 255),
@@ -157,7 +157,7 @@ impl Board {
         collides
     }
     fn move_piece_left(&self, piece: &mut Piece) -> bool {
-        if piece.column <= 0 {
+        if piece.column == 0 {
             return false;
         }
         piece.column -= 1;
@@ -187,7 +187,7 @@ impl Board {
         while self.move_piece_right(piece) {}
     }
     fn move_piece_down(&mut self, piece: &mut Piece) -> bool {
-        if piece.row <= 0 {
+        if piece.row == 0 {
             //soft drop when this is implemented
             self.hard_drop(*piece);
             true
@@ -219,7 +219,7 @@ impl Board {
         }
         while piece.row > 0 {
             piece.row -= 1;
-            if { self.check_collision(piece) } {
+            if self.check_collision(piece) {
                 if piece.row < 20 - piece.kind.height(piece.rotation) as u8 {
                     piece.row += 1;
                     break;
@@ -249,9 +249,9 @@ impl Board {
         self.board = array_init::from_iter(
             self.board
                 .iter()
-                .filter(|row| row.iter().position(|cell| cell.filled.is_none()).is_some())
-                .map(|x| (*x).clone())
-                .chain([[Cell::default(); 10]; 1].iter().cycle().map(|x| *x)),
+                .filter(|row| row.iter().any(|cell| cell.filled.is_none()))
+                .copied()
+                .chain([[Cell::default(); 10]; 1].iter().cycle().copied()),
         )
         .unwrap();
     }
@@ -474,8 +474,8 @@ fn main() {
     let mut test = Tetris::default();
     let rng = rand::thread_rng();
     test.rng = rng;
-    test.tick_speed = Duration::from_millis(500);
-    test.next_tick = Some(Instant::now() + Duration::from_millis(500));
+    test.tick_speed = Duration::from_millis(1000);
+    test.next_tick = Some(Instant::now() + Duration::from_millis(1000));
     match event::run(&mut ctx, &mut event_loop, &mut test) {
         Ok(_) => println!("Exited cleanly."),
         Err(e) => println!("Error occured: {}", e),

@@ -208,14 +208,13 @@ impl Board {
     }
     fn move_piece_down(&mut self, piece: &mut Piece) -> bool {
         if piece.row == 0 {
-            //soft drop when this is implemented
-            self.hard_drop(*piece);
+            self.place_unchecked(*piece);
             true
         } else {
             piece.row -= 1;
             if self.check_collision(*piece) {
                 piece.row += 1;
-                self.hard_drop(*piece);
+                self.place_unchecked(*piece);
                 return true;
             }
             false
@@ -281,7 +280,6 @@ impl Board {
             *self = Board::default();
         }
         self.place_unchecked(piece);
-        self.clear_lines();
     }
     fn _place_checked(&mut self, piece: Piece) -> bool {
         if self.check_collision(piece) {
@@ -295,6 +293,7 @@ impl Board {
         for (x, y) in piece.filled() {
             self.board[x as usize][y as usize].filled = Some(piece.kind)
         }
+        self.clear_lines();
     }
     fn clear_lines(&mut self) {
         self.board = array_init::from_iter(

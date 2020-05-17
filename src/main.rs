@@ -1,7 +1,7 @@
 use filled::{FILLED, ROTATION_OFFSETS};
 use ggez::event::{self, EventHandler, KeyCode, KeyMods};
 use ggez::graphics;
-use ggez::graphics::{window, Color, Rect};
+use ggez::graphics::{window, Color, DrawParam, Rect};
 use ggez::{Context, ContextBuilder, GameResult};
 use num_derive::FromPrimitive;
 use num_traits::cast::FromPrimitive;
@@ -206,18 +206,17 @@ impl Board {
     fn das_right(&self, piece: &mut Piece) {
         while self.move_piece_right(piece) {}
     }
-    fn move_piece_down(&mut self, piece: &mut Piece) -> bool {
+    fn move_piece_down(&mut self, piece: &mut Piece) -> Option<isize> {
         if piece.row == 0 {
-            self.place_unchecked(*piece);
-            true
+            Some(self.place_unchecked(*piece))
         } else {
             piece.row -= 1;
             if self.check_collision(*piece) {
                 piece.row += 1;
-                self.place_unchecked(*piece);
-                return true;
+                Some(self.place_unchecked(*piece))
+            } else {
+                None
             }
-            false
         }
     }
     fn rotate_piece_clockwise(&self, piece: &mut Piece) {
@@ -275,11 +274,11 @@ impl Board {
         }
         true
     }
-    fn hard_drop(&mut self, mut piece: Piece) {
+    fn hard_drop(&mut self, mut piece: Piece) -> isize {
         if !self.drop(&mut piece) {
             *self = Board::default();
         }
-        self.place_unchecked(piece);
+        self.place_unchecked(piece)
     }
     fn _place_checked(&mut self, piece: Piece) -> bool {
         if self.check_collision(piece) {
@@ -289,21 +288,30 @@ impl Board {
             false
         }
     }
-    fn place_unchecked(&mut self, piece: Piece) {
+    fn place_unchecked(&mut self, piece: Piece) -> isize {
         for (x, y) in piece.filled() {
             self.board[x as usize][y as usize].filled = Some(piece.kind)
         }
-        self.clear_lines();
+        self.clear_lines()
     }
-    fn clear_lines(&mut self) {
+    fn clear_lines(&mut self) -> isize {
+        let mut counter = 0;
         self.board = array_init::from_iter(
             self.board
                 .iter()
-                .filter(|row| row.iter().any(|cell| cell.filled.is_none()))
+                .filter(|row| {
+                    if row.iter().any(|cell| cell.filled.is_none()) {
+                        true
+                    } else {
+                        counter += 1;
+                        false
+                    }
+                })
                 .copied()
                 .chain([[Cell::default(); 10]; 1].iter().cycle().copied()),
         )
         .unwrap();
+        counter
     }
     fn draw_board_ggez(&self, ctx: &mut Context, x: f32, y: f32) -> GameResult {
         for (ypos, row) in self.board.iter().enumerate() {
@@ -346,6 +354,7 @@ struct Tetris {
     das_time: Option<(Instant, bool)>,
     hold: (bool, Option<Tetromino>),
     soft_dropping: bool,
+    lines_remaining: Option<isize>,
 }
 
 impl Tetris {
@@ -418,7 +427,10 @@ impl EventHandler for Tetris {
                 }
                 self.current_piece = Some(piece);
                 while Instant::now() > time {
-                    if self.board.move_piece_down(&mut piece) {
+                    if let Some(cleared) = self.board.move_piece_down(&mut piece) {
+                        if let Some(remaining) = &mut self.lines_remaining {
+                            *remaining -= cleared;
+                        }
                         self.current_piece = None;
                     } else {
                         self.current_piece = Some(piece);
@@ -502,6 +514,20 @@ impl EventHandler for Tetris {
             .map(|piece| piece.draw_ggez(ctx, width as f32 / 2.0 - 80.0, height as f32))
             .collect::<Result<Vec<()>, _>>()?;
 
+        if let Some(lines) = self.lines_remaining {
+            let lines = graphics::Text::new(lines.to_string());
+            graphics::draw(
+                ctx,
+                &lines,
+                DrawParam::new()
+                    .dest(ggez::mint::Point2 {
+                        x: width as f32 / 2.0 - 160.0,
+                        y: (height - 360.0) as f32,
+                    })
+                    .scale([2.0, 2.0]),
+            )?;
+        }
+
         graphics::present(ctx)
     }
     fn key_down_event(
@@ -517,7 +543,8 @@ impl EventHandler for Tetris {
         match keycode {
             KeyCode::Up => {
                 if let Some(piece) = self.current_piece {
-                    self.board.hard_drop(piece);
+                    let cleared = self.board.hard_drop(piece);
+                    self.lines_remaining = self.lines_remaining.map(|x| x - cleared);
                     self.hold.0 = false;
                 }
                 self.current_piece = None;
@@ -595,6 +622,7 @@ fn main() {
     test.tick_speed = Duration::from_millis(1000);
     test.soft_drop_speed = Duration::from_millis(20);
     test.next_tick = Some(Instant::now() + Duration::from_millis(1000));
+    test.lines_remaining = Some(40);
     match event::run(&mut ctx, &mut event_loop, &mut test) {
         Ok(_) => println!("Exited cleanly."),
         Err(e) => println!("Error occured: {}", e),

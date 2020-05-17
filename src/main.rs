@@ -7,9 +7,9 @@ use num_derive::FromPrimitive;
 use num_traits::cast::FromPrimitive;
 use rand::prelude::{SliceRandom, ThreadRng};
 use rand::Rng;
+use std::cmp::min;
 use std::mem::swap;
 use std::time::{Duration, Instant};
-use std::cmp::min;
 
 mod filled;
 
@@ -222,27 +222,39 @@ impl Board {
         }
     }
     fn rotate_piece_clockwise(&self, piece: &mut Piece) {
-        let (orginal_x, original_y) = ROTATION_OFFSETS[piece.kind as usize][piece.rotation as usize];
+        let (orginal_x, original_y) =
+            ROTATION_OFFSETS[piece.kind as usize][piece.rotation as usize];
         piece.rotation = (piece.rotation + 1) % 4;
         let (new_x, new_y) = ROTATION_OFFSETS[piece.kind as usize][piece.rotation as usize];
-        let (column, row) = (piece.column, piece.row);
         piece.row += new_y;
         piece.column += new_x;
-        piece.row = min(piece.row.checked_sub(original_y).unwrap_or(0),20 - piece.kind.height(piece.rotation) as u8);
-        piece.column = min(piece.column.checked_sub(orginal_x).unwrap_or(0),10 - piece.kind.width(piece.rotation) as u8);
+        piece.row = min(
+            piece.row.saturating_sub(original_y),
+            20 - piece.kind.height(piece.rotation) as u8,
+        );
+        piece.column = min(
+            piece.column.saturating_sub(orginal_x),
+            10 - piece.kind.width(piece.rotation) as u8,
+        );
         if self.check_collision(*piece) {
             piece.rotation = (piece.rotation + 3) % 4;
         }
     }
     fn rotate_piece_counterclockwise(&self, piece: &mut Piece) {
-        let (orginal_x, original_y) = ROTATION_OFFSETS[piece.kind as usize][piece.rotation as usize];
+        let (orginal_x, original_y) =
+            ROTATION_OFFSETS[piece.kind as usize][piece.rotation as usize];
         piece.rotation = (piece.rotation + 3) % 4;
         let (new_x, new_y) = ROTATION_OFFSETS[piece.kind as usize][piece.rotation as usize];
-        let (column, row) = (piece.column, piece.row);
         piece.row += new_y;
         piece.column += new_x;
-        piece.row = min(piece.row.checked_sub(original_y).unwrap_or(0),20 - piece.kind.height(piece.rotation) as u8);
-        piece.column = min(piece.column.checked_sub(orginal_x).unwrap_or(0),10 - piece.kind.width(piece.rotation) as u8);
+        piece.row = min(
+            piece.row.saturating_sub(original_y),
+            20 - piece.kind.height(piece.rotation) as u8,
+        );
+        piece.column = min(
+            piece.column.saturating_sub(orginal_x),
+            10 - piece.kind.width(piece.rotation) as u8,
+        );
         if self.check_collision(*piece) {
             piece.rotation = (piece.rotation + 1) % 4;
         }

@@ -62,6 +62,25 @@ impl Piece {
         }
         Ok(())
     }
+    fn draw_ghost_ggez(self, ctx: &mut Context, x: f32, y: f32) -> GameResult {
+        for (ypos, xpos) in self.filled() {
+            let mut ghost_color = self.kind.color();
+            ghost_color.a = 0.2;
+            let rectangle = graphics::Mesh::new_rectangle(
+                ctx,
+                graphics::DrawMode::fill(),
+                Rect::new(
+                    x + 1.0 + 16.0 * xpos as f32,
+                    y + 1.0 - 16.0 * (ypos + 1) as f32,
+                    14.0,
+                    14.0,
+                ),
+                ghost_color,
+            )?;
+            graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 },))?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, FromPrimitive, Clone, Copy)]
@@ -213,21 +232,26 @@ impl Board {
             piece.rotation = (piece.rotation + 1) % 4;
         }
     }
-    fn hard_drop(&mut self, mut piece: Piece) {
+    fn drop(&self, piece: &mut Piece) -> bool {
         if piece.column >= 10 {
-            return;
+            return false;
         }
         while piece.row > 0 {
             piece.row -= 1;
-            if self.check_collision(piece) {
+            if self.check_collision(*piece) {
                 if piece.row < 20 - piece.kind.height(piece.rotation) as u8 {
                     piece.row += 1;
                     break;
                 } else {
-                    *self = Board::default();
-                    return;
+                    return false;
                 }
             }
+        }
+        true
+    }
+    fn hard_drop(&mut self, mut piece: Piece) {
+        if !self.drop(&mut piece) {
+            *self = Board::default();
         }
         self.place_unchecked(piece);
         self.clear_lines();
@@ -416,6 +440,9 @@ impl EventHandler for Tetris {
             .draw_board_ggez(ctx, width as f32 / 2.0 - 80.0, height as f32)?;
         if let Some(piece) = self.current_piece {
             piece.draw_ggez(ctx, width as f32 / 2.0 - 80.0, height as f32)?;
+            let mut ghost = piece;
+            self.board.drop(&mut ghost);
+            ghost.draw_ghost_ggez(ctx, width as f32 / 2.0 - 80.0, height as f32)?;
         }
 
         if let (_, Some(kind)) = self.hold {
@@ -466,14 +493,14 @@ impl EventHandler for Tetris {
             KeyCode::Left => {
                 if let Some(mut piece) = self.current_piece {
                     self.board.move_piece_left(&mut piece);
-                    self.das_time = Some((Instant::now() + Duration::from_millis(100), false));
+                    self.das_time = Some((Instant::now() + Duration::from_millis(60), false));
                     self.current_piece = Some(piece);
                 }
             }
             KeyCode::Right => {
                 if let Some(mut piece) = self.current_piece {
                     self.board.move_piece_right(&mut piece);
-                    self.das_time = Some((Instant::now() + Duration::from_millis(100), true));
+                    self.das_time = Some((Instant::now() + Duration::from_millis(60), true));
                     self.current_piece = Some(piece);
                 }
             }

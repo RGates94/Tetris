@@ -396,6 +396,21 @@ impl EventHandler for Tetris {
             piece.draw_ggez(ctx, width as f32 / 2.0 - 80.0, height as f32)?;
         }
 
+        self.current_batch
+            .iter()
+            .rev()
+            .chain(self.next_batch.iter().rev())
+            .take(5)
+            .enumerate()
+            .map(|(index, &kind)| Piece {
+                kind,
+                column: 12,
+                row: 18 - 3 * index as u8,
+                rotation: 0,
+            })
+            .map(|piece| piece.draw_ggez(ctx, width as f32 / 2.0 - 80.0, height as f32))
+            .collect::<Result<Vec<()>, _>>()?;
+
         graphics::present(ctx)
     }
     fn key_down_event(

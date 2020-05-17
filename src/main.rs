@@ -337,6 +337,7 @@ fn generate_batch(rng: &mut ThreadRng, batch: &mut Vec<Tetromino>) {
 struct Tetris {
     next_tick: Option<Instant>,
     tick_speed: Duration,
+    soft_drop_speed: Duration,
     board: Board,
     rng: ThreadRng,
     current_batch: Vec<Tetromino>,
@@ -344,6 +345,7 @@ struct Tetris {
     current_piece: Option<Piece>,
     das_time: Option<(Instant, bool)>,
     hold: (bool, Option<Tetromino>),
+    soft_dropping: bool,
 }
 
 impl Tetris {
@@ -423,7 +425,11 @@ impl EventHandler for Tetris {
                         self.tick_speed *= 499;
                         self.tick_speed /= 500;
                     }
-                    time += self.tick_speed;
+                    time += if self.soft_dropping {
+                        self.soft_drop_speed
+                    } else {
+                        self.tick_speed
+                    };
                 }
                 self.next_tick = Some(time);
             }
@@ -516,6 +522,11 @@ impl EventHandler for Tetris {
                 }
                 self.current_piece = None;
             }
+            KeyCode::Down => {
+                self.board.move_piece_down(&mut self.current_piece.unwrap());
+                self.soft_dropping = true;
+                self.next_tick = min(Some(Instant::now() + self.soft_drop_speed), self.next_tick);
+            }
             KeyCode::Left => {
                 if let Some(mut piece) = self.current_piece {
                     self.board.move_piece_left(&mut piece);
@@ -550,6 +561,9 @@ impl EventHandler for Tetris {
     }
     fn key_up_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods) {
         match keycode {
+            KeyCode::Down => {
+                self.soft_dropping = false;
+            }
             KeyCode::Left => {
                 if !if let Some((_, right)) = self.das_time {
                     right
@@ -579,6 +593,7 @@ fn main() {
     let rng = rand::thread_rng();
     test.rng = rng;
     test.tick_speed = Duration::from_millis(1000);
+    test.soft_drop_speed = Duration::from_millis(20);
     test.next_tick = Some(Instant::now() + Duration::from_millis(1000));
     match event::run(&mut ctx, &mut event_loop, &mut test) {
         Ok(_) => println!("Exited cleanly."),
